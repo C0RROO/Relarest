@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>relarest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#06080c;
+    --panel:rgba(8,12,18,.94);
+    --panel-solid:rgba(6,10,16,.98);
+    --border:rgba(110,180,190,.16);
+    --border-hi:rgba(127,229,200,.5);
+    --text:#b4c3cd;
+    --text-hi:#eaf3f7;
+    --text-dim:#56646f;
+    --accent:#7fe5c8;
+    --accent-soft:rgba(127,229,200,.10);
+    --fs:12px;
+  }
+  html,body{
+    width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+    font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+    font-weight:300;font-size:var(--fs);letter-spacing:.03em;
+    cursor:crosshair;touch-action:none;
+    -webkit-tap-highlight-color:transparent;user-select:none;
+  }
+
+  .bg-stars{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.55}
+  .bg-neb{position:fixed;inset:-10%;z-index:1;pointer-events:none;will-change:transform;
+    transition:transform 1.2s cubic-bezier(.2,.7,.3,1);
+    background:
+      radial-gradient(ellipse 50% 40% at 25% 30%, rgba(60,40,120,.22), transparent 60%),
+      radial-gradient(ellipse 45% 50% at 78% 72%, rgba(15,80,110,.20), transparent 62%),
+      radial-gradient(ellipse 60% 42% at 55% 105%, rgba(120,40,80,.14), transparent 66%);
+    animation:hueDrift 60s ease-in-out infinite alternate}
+  @keyframes hueDrift{
+    from{filter:hue-rotate(0deg) brightness(.95)}
+    to{filter:hue-rotate(24deg) brightness(1.15)}}
+  #c{position:fixed;inset:0;z-index:2;display:block;will-change:transform}
+  .vignette{position:fixed;inset:0;z-index:3;pointer-events:none;
+    background:
+      radial-gradient(ellipse 90% 90% at 50% 50%, transparent 34%, rgba(2,4,8,.78) 100%),
+      radial-gradient(ellipse 120% 80% at 50% 100%, rgba(20,50,60,.14), transparent 70%)}
+  .grain{position:fixed;inset:0;z-index:4;pointer-events:none;opacity:.045;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>")}
+  .veil{position:fixed;inset:0;z-index:5;pointer-events:none;background:#000;opacity:0;transition:opacity 2s linear}
+
+  .ui{position:fixed;inset:0;z-index:6;pointer-events:none;transition:opacity .8s ease}
+  .ui.hidden{opacity:0}
+
+  .intro{position:fixed;inset:0;z-index:30;display:grid;place-items:center;
+    pointer-events:none;transition:opacity 1.6s ease}
+  .intro.gone{opacity:0}
+  .mark{
+    font-family:'JetBrains Mono',monospace;font-weight:200;
+    font-size:clamp(36px,8vw,90px);
+    letter-spacing:.42em;text-indent:.42em;
+    color:var(--text-hi);
+    text-shadow:0 0 44px rgba(127,229,200,.28),0 0 90px rgba(127,229,200,.10);
+    display:flex;justify-content:center;
+  }
+  .mark span{display:inline-block;opacity:0;
+    animation:letterIn .55s cubic-bezier(.2,.7,.2,1) forwards}
+  .mark span:nth-child(1){animation-delay:.15s}
+  .mark span:nth-child(2){animation-delay:.30s}
+  .mark span:nth-child(3){animation-delay:.45s}
+  .mark span:nth-child(4){animation-delay:.60s}
+  .mark span:nth-child(5){animation-delay:.75s}
+  .mark span:nth-child(6){animation-delay:.90s}
+  .mark span:nth-child(7){animation-delay:1.05s}
+  .mark span:nth-child(8){animation-delay:1.20s}
+  @keyframes letterIn{
+    from{opacity:0;transform:translateY(-14px);filter:blur(6px)}
+    to{opacity:1;transform:translateY(0);filter:blur(0)}}
+
+  /* ─── HUD / HINT (expand on hover) ─── */
+  .hud,.hint{
+    position:absolute;
+    font-size:11px;line-height:2;letter-spacing:.08em;
+    color:var(--text-dim);
+    transition:font-size .22s ease,color .22s ease,background .22s ease;
+    pointer-events:auto;cursor:default;
+    border-radius:3px;
+    padding:10px 14px;
+    margin:-10px -14px;
+  }
+  .hud{left:14px;top:14px}
+  .hint{left:14px;bottom:14px}
+  .hud b,.hint b{color:var(--text);font-weight:400}
+  .hud:hover,.hint:hover{
+    font-size:13px;
+    color:var(--text-hi);
+    background:rgba(6,10,16,.72);
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    text-shadow:0 0 12px rgba(127,229,200,.25)}
+  .hud:hover b,.hint:hover b{color:var(--accent)}
+  .hud.idle{opacity:.22}
+
+  /* ─── TOP RIGHT ─── */
+  .top{position:absolute;right:16px;top:16px;display:flex;gap:8px;pointer-events:auto;z-index:40}
+
+  .icon-btn{
+    width:38px;height:38px;display:grid;place-items:center;
+    background:var(--panel);border:1px solid var(--border);
+    border-radius:2px;color:var(--text);cursor:pointer;
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    transition:color .18s ease,border-color .18s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .icon-btn:hover{color:var(--accent)}
+  .icon-btn.active{color:var(--accent);border-color:var(--border-hi)}
+  .icon-btn svg{width:17px;height:17px;
+    stroke:currentColor;stroke-width:1.3;fill:none;
+    stroke-linecap:round;stroke-linejoin:round}
+
+  /* ─── PANEL ─── */
+  .panel{
+    position:absolute;top:calc(100% + 10px);right:0;
+    background:var(--panel);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+    border:1px solid var(--border);border-radius:2px;
+    box-shadow:0 24px 60px rgba(0,0,0,.6);
+    display:none;flex-direction:column;
+    transform-origin:top right;
+  }
+  .panel.open{display:flex;animation:panelIn .22s cubic-bezier(.2,.8,.3,1)}
+  @keyframes panelIn{
+    from{opacity:0;transform:translateY(-4px) scale(.98)}
+    to{opacity:1;transform:translateY(0) scale(1)}}
+
+  .panel-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:11px 14px;border-bottom:1px solid var(--border);
+    font-size:10.5px;letter-spacing:.22em;text-transform:lowercase;
+    color:var(--accent)}
+  .panel-head::before{content:'> ';opacity:.5}
+  .panel-head-title{flex:1}
+  .panel-x{
+    width:20px;height:20px;display:grid;place-items:center;
+    color:var(--text-dim);cursor:pointer;font-size:16px;line-height:1;
+    transition:color .15s ease;pointer-events:auto;
+    background:none;border:none;font-family:inherit;padding:0;
+  }
+  .panel-x:hover{color:var(--accent)}
+
+  .panel-body{padding:14px;display:flex;flex-direction:column;gap:13px}
+
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field > label{
+    font-size:10px;letter-spacing:.22em;text-transform:lowercase;
+    color:var(--text-dim);padding-left:1px}
+  .field > label::before{content:'· ';color:var(--accent);opacity:.5}
+
+  .dd{position:relative;width:100%}
+  .dd-toggle{
+    width:100%;padding:9px 12px;
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    background:transparent;border:1px solid var(--border);
+    border-radius:2px;color:var(--text);
+    font-family:inherit;font-size:12px;letter-spacing:.04em;
+    text-align:left;cursor:pointer;
+    transition:color .15s ease,border-color .15s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .dd-toggle:hover{color:var(--accent);border-color:var(--border-hi)}
+  .dd.open .dd-toggle{color:var(--accent);border-color:var(--border-hi)}
+  .dd-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dd-lbl::before{content:'[ ';opacity:.35}
+  .dd-lbl::after{content:' ]';opacity:.35}
+  .dd-caret{font-size:8px;opacity:.5;transition:transform .2s ease;display:inline-block}
+  .dd.open .dd-caret{transform:rotate(180deg)}
+  .dd-menu{
+    position:absolute;top:calc(100% + 3px);left:0;right:0;
+    background:var(--panel-solid);
+    border:1px solid var(--border-hi);border-radius:2px;
+    box-shadow:0 16px 44px rgba(0,0,0,.75);
+    padding:3px;display:none;z-index:100;
+    max-height:240px;overflow-y:auto;
+    animation:menuIn .14s ease-out}
+  .dd.open .dd-menu{display:block}
+  @keyframes menuIn{
+    from{opacity:0;transform:translateY(-3px)}
+    to{opacity:1;transform:translateY(0)}}
+  .dd-menu::-webkit-scrollbar{width:3px}
+  .dd-menu::-webkit-scrollbar-thumb{background:var(--border)}
+  .dd-item{
+    display:block;width:100%;padding:7px 10px;
+    background:none;border:none;border-radius:2px;
+    color:var(--text);font-family:inherit;font-size:12px;
+    letter-spacing:.04em;text-align:left;cursor:pointer;
+    transition:color .1s ease,background .1s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .dd-item:hover{color:var(--accent);background:var(--accent-soft)}
+  .dd-item.active{color:var(--accent)}
+  .dd-item.active::before{content:'> ';opacity:.7}
+
+  /* ─── HISTORY ─── */
+  .hist-panel{width:360px}
+  .hist-panel .panel-body{gap:15px}
+
+  .hist-row{display:flex;justify-content:space-between;align-items:baseline;
+    font-size:12px;letter-spacing:.06em}
+  .hist-row .k{color:var(--text-dim)}
+  .hist-row .k::before{content:'· ';color:var(--accent);opacity:.5}
+  .hist-row .v{color:var(--text-hi);font-weight:400;font-variant-numeric:tabular-nums}
+
+  .hist-section-title{
+    font-size:10px;letter-spacing:.22em;text-transform:lowercase;
+    color:var(--text-dim);margin-top:4px}
+  .hist-section-title::before{content:'> ';color:var(--accent);opacity:.5}
+
+  .hist-chart{display:flex;align-items:flex-end;gap:3px;height:88px;
+    padding:6px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+  .hist-col{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:1px}
+  .hist-seg{border-radius:0}
+  .hist-seg.breath{background:#6aa8ff}
+  .hist-seg.focus{background:#a97aff}
+  .hist-seg.rest{background:#6fd9b8}
+
+  .hist-legend{display:flex;gap:14px;font-size:10px;color:var(--text-dim);letter-spacing:.05em}
+  .hist-legend span{display:flex;align-items:center;gap:6px}
+  .hist-legend i{width:8px;height:8px;display:block;border-radius:0}
+
+  .hist-recent{display:flex;flex-direction:column;gap:2px;
+    max-height:190px;overflow-y:auto;padding-right:2px}
+  .hist-recent::-webkit-scrollbar{width:3px}
+  .hist-recent::-webkit-scrollbar-thumb{background:var(--border)}
+  .hist-item{display:grid;grid-template-columns:auto 1fr auto;gap:10px;
+    align-items:baseline;padding:6px 0;
+    font-size:11.5px;color:var(--text);
+    border-bottom:1px solid rgba(110,180,190,.06)}
+  .hist-item .dot{width:6px;height:6px;border-radius:0;margin-top:5px}
+  .hist-item .dot.breath{background:#6aa8ff}
+  .hist-item .dot.focus{background:#a97aff}
+  .hist-item .dot.rest{background:#6fd9b8}
+  .hist-item .info{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hist-item .info .when{color:var(--text-dim);font-size:10px;margin-left:6px}
+  .hist-item .dur{color:var(--text-hi);font-variant-numeric:tabular-nums;font-size:11px}
+  .hist-empty{padding:16px 0;text-align:center;color:var(--text-dim);font-size:11px}
+  .hist-empty::before{content:'// '}
+
+  /* ─── DISPLAY ─── */
+  .display{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    text-align:center;pointer-events:none;opacity:0;
+    transition:opacity .9s ease;isolation:isolate;z-index:7}
+  .display.active{opacity:1}
+  .display::before{content:'';position:absolute;
+    left:50%;top:50%;transform:translate(-50%,-50%);
+    width:min(80vw,560px);height:min(80vw,560px);
+    background:radial-gradient(circle at center,
+      rgba(4,6,10,.72) 0%,rgba(4,6,10,.52) 32%,
+      rgba(4,6,10,.20) 58%,rgba(4,6,10,0) 78%);
+    z-index:-1;pointer-events:none;border-radius:50%}
+
+  .display .phase{
+    font-size:12px;letter-spacing:.42em;text-transform:lowercase;
+    color:var(--accent);opacity:.85;margin-bottom:12px;
+    text-shadow:0 0 20px rgba(127,229,200,.4),0 2px 8px rgba(0,0,0,.7);
+    padding-left:.42em}
+  .display .phase::before{content:'[ ';opacity:.5}
+  .display .phase::after{content:' ]';opacity:.5}
+
+  .display .timer{
+    font-family:'JetBrains Mono',monospace;font-weight:200;
+    font-size:clamp(46px,9.5vw,84px);line-height:1;
+    letter-spacing:.02em;color:var(--text-hi);
+    font-variant-numeric:tabular-nums;
+    text-shadow:0 0 44px rgba(127,229,200,.28),0 4px 24px rgba(0,0,0,.75)}
+
+  .display .meta{
+    font-size:10.5px;letter-spacing:.34em;text-transform:lowercase;
+    color:var(--text-dim);margin-top:14px;padding-left:.34em;
+    text-shadow:0 2px 10px rgba(0,0,0,.7)}
+  .display .meta::before{content:'// ';color:var(--accent);opacity:.45}
+
+  /* ─── TOAST ─── */
+  .toast{position:absolute;left:50%;top:78%;transform:translate(-50%,-50%);
+    font-size:13px;letter-spacing:.28em;text-transform:lowercase;
+    color:var(--accent);text-shadow:0 0 22px rgba(127,229,200,.5);
+    opacity:0;pointer-events:none;white-space:nowrap;
+    padding-left:.28em;z-index:8}
+  .toast::before{content:'> ';opacity:.6}
+  .toast.show{animation:toastAnim 2.6s cubic-bezier(.2,.8,.3,1) forwards}
+  @keyframes toastAnim{
+    0%{opacity:0;filter:blur(10px);transform:translate(-50%,-50%) scale(1.08)}
+    18%{opacity:.95;filter:blur(0);transform:translate(-50%,-50%) scale(1)}
+    70%{opacity:.95}
+    100%{opacity:0;filter:blur(10px);transform:translate(-50%,-50%) scale(1.04)}}
+
+  @media (max-width:640px){
+    :root{--fs:11px}
+    .hud,.hint{font-size:10.5px;padding:8px 10px;margin:-8px -10px}
+    .hud:hover,.hint:hover{font-size:12px}
+    .hud{left:12px;top:12px}
+    .hint{left:12px;bottom:12px}
+    .top{right:12px;top:12px;gap:6px}
+    .icon-btn{width:36px;height:36px}
+    .panel{width:calc(100vw - 24px)!important;right:0;max-width:380px}
+    .hist-panel{width:calc(100vw - 24px)!important}
+    .display .timer{font-size:56px}
+    .display .phase{font-size:11px}
+    .display::before{width:92vw;height:92vw}
+    .toast{font-size:11.5px;letter-spacing:.2em;white-space:normal;
+      max-width:80vw;text-align:center}
+  }
+  @media (max-width:380px){
+    .display .timer{font-size:46px}
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-stars" id="bgStars"></div>
+<div class="bg-neb" id="bgNeb"></div>
+<canvas id="c"></canvas>
+<div class="vignette"></div>
+<div class="grain"></div>
+<div class="veil" id="veil"></div>
+
+<div class="intro" id="intro">
+  <div class="mark">
+    <span>r</span><span>e</span><span>l</span><span>a</span><span>r</span><span>e</span><span>s</span><span>t</span>
+  </div>
+</div>
+
+<div class="ui" id="ui">
+  <div class="hud" id="hud">
+    <div>atmos <b id="hudMode">silence</b></div>
+    <div>sound <b id="hudSound">ambient</b></div>
+    <div><b id="hudFps">60</b> fps</div>
+  </div>
+
+  <div class="display" id="display">
+    <div class="phase" id="phase">—</div>
+    <div class="timer" id="timer">—</div>
+    <div class="meta" id="meta"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="hint" id="hint">
+    <div><b>1-6</b> atmosphere</div>
+    <div><b>space</b> pulse</div>
+    <div><b>f</b> fullscreen · <b>h</b> hide</div>
+  </div>
+
+  <div class="top">
+    <button class="icon-btn" id="historyBtn" aria-label="history">
+      <svg viewBox="0 0 16 16">
+        <path d="M2.5 8a5.5 5.5 0 1 0 1.6-3.9"/>
+        <path d="M2 2.5V5.5H5"/>
+        <path d="M8 4.5V8l2.3 1.9"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="settingsBtn" aria-label="settings">
+      <svg viewBox="0 0 16 16">
+        <circle cx="8" cy="8" r="2.4"/>
+        <path d="M8 1.2v1.8M8 13v1.8M3.1 3.1l1.3 1.3M11.6 11.6l1.3 1.3M1.2 8h1.8M13 8h1.8M3.1 12.9l1.3-1.3M11.6 4.4l1.3-1.3"/>
+      </svg>
+    </button>
+
+    <div class="panel" id="settingsPanel">
+      <div class="panel-head">
+        <span class="panel-head-title">settings</span>
+        <button class="panel-x" data-close="settingsPanel">×</button>
+      </div>
+      <div class="panel-body">
+        <div class="field">
+          <label>purpose</label>
+          <div class="dd" id="ddPurpose"></div>
+        </div>
+        <div class="field">
+          <label>sound</label>
+          <div class="dd" id="ddSound"></div>
+        </div>
+        <div class="field">
+          <label>atmosphere</label>
+          <div class="dd" id="ddAtmo"></div>
+        </div>
+        <div id="ddContext"></div>
+      </div>
+    </div>
+
+    <div class="panel hist-panel" id="historyPanel">
+      <div class="panel-head">
+        <span class="panel-head-title">history</span>
+        <button class="panel-x" data-close="historyPanel">×</button>
+      </div>
+      <div class="panel-body">
+        <div class="hist-row"><span class="k">today</span><span class="v" id="hToday">—</span></div>
+        <div class="hist-row"><span class="k">week</span><span class="v" id="hWeek">—</span></div>
+        <div class="hist-row"><span class="k">total</span><span class="v" id="hTotal">—</span></div>
+
+        <div class="hist-section-title">last 14 days</div>
+        <div class="hist-chart" id="hChart"></div>
+        <div class="hist-legend">
+          <span><i style="background:#6aa8ff"></i>дыхание</span>
+          <span><i style="background:#a97aff"></i>фокус</span>
+          <span><i style="background:#6fd9b8"></i>отдых</span>
+        </div>
+
+        <div class="hist-section-title">recent</div>
+        <div class="hist-recent" id="hRecent"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+const $ = id => document.getElementById(id);
+const canvas = $('c'), ctx = canvas.getContext('2d', { alpha: true });
+const bgStars = $('bgStars'), bgNeb = $('bgNeb'), veil = $('veil');
+const ui = $('ui'), hud = $('hud'), hudMode = $('hudMode'), hudSound = $('hudSound'), hudFps = $('hudFps');
+const intro = $('intro');
+const display = $('display'), phaseEl = $('phase'), timerEl = $('timer'), metaEl = $('meta');
+const toastEl = $('toast');
+const settingsBtn = $('settingsBtn'), settingsPanel = $('settingsPanel');
+const historyBtn = $('historyBtn'), historyPanel = $('historyPanel');
+const ddPurpose = $('ddPurpose'), ddSound = $('ddSound'), ddAtmo = $('ddAtmo'), ddContext = $('ddContext');
+const hToday = $('hToday'), hWeek = $('hWeek'), hTotal = $('hTotal');
+const hChart = $('hChart'), hRecent = $('hRecent');
+
+/* ─── ЗВЁЗДЫ ─── */
+(function(){
+  const w = 1920, h = 1080;
+  let s = '<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'">';
+  for (let i = 0; i < 240; i++){
+    const x = (Math.random()*w).toFixed(1), y = (Math.random()*h).toFixed(1);
+    const r = (Math.random()*1.1+0.25).toFixed(2);
+    const a = (Math.random()*0.5+0.12).toFixed(2);
+    s += '<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="#dce9f0" opacity="'+a+'"/>';
+  }
+  s += '</svg>';
+  bgStars.style.backgroundImage = 'url("data:image/svg+xml;utf8,'+encodeURIComponent(s)+'")';
+  bgStars.style.backgroundSize = 'cover';
+  bgStars.style.backgroundPosition = 'center';
+})();
+
+/* ─── СЛОИ ─── */
+const layerA = document.createElement('canvas'); const lctx = layerA.getContext('2d');
+const bloomA = document.createElement('canvas'); const bA = bloomA.getContext('2d');
+const bloomB = document.createElement('canvas'); const bB = bloomB.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+let bw1 = 2, bh1 = 2, bw2 = 2, bh2 = 2;
+
+/* ─── СОСТОЯНИЕ ─── */
+let particles = [], ripples = [];
+let time = 0, totalSec = 0;
+let last = performance.now();
+let emaMs = 16, quality = 1;
+let transitionT = 0;   // затухание при смене атмосферы
+
+const pointer = { x:-1e5, y:-1e5, tx:-1e5, ty:-1e5, active:false };
+const focusP = { x:0, y:0 };
+let idleTime = 0, autoPhase = 0, energy = 0;
+
+/* ═══════════════════════════════════════════════════════════
+   АТМОСФЕРЫ — каждая со своим стилем частиц
+═══════════════════════════════════════════════════════════ */
+const MODES = [
+  { id:'silence', label:'тишина',
+    hueBase:210, hueSpread:40, speed:1.00, fade:0.075, curl:2.6, vortex:7.5, pull:1.4, width:1.00,
+    lattice:0, gravity:0, radial:0, constellation:0, linkDist:0, ash:0,
+    style:{ nK:1.00, sizeMin:0.5, sizeMax:1.45, speedK:1.00, widthK:1.00, twinkleK:0.15 } },
+
+  { id:'crystal', label:'кристалл',
+    hueBase:186, hueSpread:28, speed:0.70, fade:0.110, curl:1.2, vortex:3.0, pull:2.0, width:0.85,
+    lattice:1, gravity:0, radial:0.25, constellation:0, linkDist:0, ash:0,
+    style:{ nK:1.15, sizeMin:0.35, sizeMax:0.85, speedK:0.70, widthK:0.70, twinkleK:0.6 } },
+
+  { id:'stream', label:'поток',
+    hueBase:305, hueSpread:75, speed:2.00, fade:0.130, curl:5.4, vortex:14.0, pull:2.0, width:1.10,
+    lattice:0, gravity:0, radial:0, constellation:0, linkDist:0, ash:0,
+    style:{ nK:1.25, sizeMin:0.6, sizeMax:1.6, speedK:1.9, widthK:1.3, twinkleK:0.1 } },
+
+  { id:'depth', label:'глубина',
+    hueBase:32, hueSpread:48, speed:1.15, fade:0.050, curl:1.1, vortex:5.0, pull:3.0, width:1.35,
+    lattice:0, gravity:1, radial:0.15, constellation:0, linkDist:0, ash:0,
+    style:{ nK:0.75, sizeMin:0.9, sizeMax:2.2, speedK:1.05, widthK:1.6, twinkleK:0.25 } },
+
+  { id:'constellation', label:'созвездие',
+    hueBase:220, hueSpread:30, speed:0.55, fade:0.090, curl:0.9, vortex:4.0, pull:1.2, width:0.9,
+    lattice:0, gravity:0, radial:0.05, constellation:1, linkDist:118, ash:0,
+    style:{ nK:0.30, sizeMin:0.7, sizeMax:1.5, speedK:0.55, widthK:1.0, twinkleK:0.8 } },
+
+  { id:'ash', label:'пепел',
+    hueBase:28, hueSpread:38, speed:0.50, fade:0.040, curl:0.9, vortex:3.5, pull:1.0, width:1.15,
+    lattice:0, gravity:0.85, radial:0, constellation:0, linkDist:0, ash:1,
+    style:{ nK:0.85, sizeMin:0.35, sizeMax:0.85, speedK:0.5, widthK:0.9, twinkleK:1.0 } }
+];
+
+let modeIndex = 0;
+const P = {}, T = {};
+const ALL_KEYS = ['hueBase','hueSpread','speed','fade','curl','vortex','pull','width',
+                  'lattice','gravity','radial','constellation','linkDist','ash'];
+
+function setAtmosphere(idx, silent){
+  modeIndex = ((idx % MODES.length) + MODES.length) % MODES.length;
+  const m = MODES[modeIndex];
+
+  for (const k of ALL_KEYS){
+    const v = m[k];
+    T[k] = (typeof v === 'boolean') ? (v ? 1 : 0) : (typeof v === 'number' ? v : 0);
+  }
+  for (const k of ALL_KEYS){
+    if (P[k] === undefined) P[k] = T[k];
+  }
+
+  hudMode.textContent = m.label;
+  if (!silent){
+    toast(m.label);
+    /* сигнал смены: краткий flash + ударная волна */
+    transitionT = 1;
+    ripples.push({ x:W/2, y:H/2, r:0, life:0, max:900*DPR, hue: 170, w:2.6 });
+  }
+
+  initParticlesForMode();
+}
+
+function toast(text){
+  toastEl.textContent = text;
+  toastEl.classList.remove('show');
+  void toastEl.offsetWidth;
+  toastEl.classList.add('show');
+}
+
+/* ═══════ ЧАСТИЦЫ ═══════ */
+function spawn(seeded, style){
+  style = style || MODES[modeIndex].style;
+  const max = 260 + Math.random()*660;
+  const sizeRange = style.sizeMax - style.sizeMin;
+  const p = {
+    x: Math.random()*W, y: Math.random()*H,
+    px:0, py:0, bx:0, by:0,
+    speed: (0.55 + Math.random()*1.15) * style.speedK,
+    hueOff: (Math.random()-0.5)*60,
+    w: style.sizeMin + Math.random()*sizeRange,
+    life: seeded ? Math.random()*max : 0, max,
+    breathOffset: (Math.random()-0.5)*0.55,
+    breathDir: Math.random() < 0.5 ? -1 : 1,
+    breathSpeed: 0.55 + Math.random()*0.9,
+    breathPhase: Math.random()*Math.PI*2,
+    twinkle: Math.random()*Math.PI*2,
+    twinkleRate: 0.6 + Math.random()*1.6,
+    twinkleK: style.twinkleK
+  };
+  p.px = p.x; p.py = p.y;
+  return p;
+}
+
+function initParticlesForMode(){
+  const m = MODES[modeIndex];
+  const area = (W/DPR)*(H/DPR);
+  const base = Math.max(180, Math.floor(area/1350));
+  const n = Math.min(1400, Math.floor(base * m.style.nK));
+  particles = [];
+  for (let i = 0; i < n; i++) particles.push(spawn(true, m.style));
+}
+
+function burst(x, y, k){
+  k = k || 1;
+  const R = 470*DPR, R2 = R*R;
+  for (let i = 0; i < particles.length; i++){
+    const p = particles[i];
+    const dx = p.x - x, dy = p.y - y;
+    const d2 = dx*dx + dy*dy;
+    if (d2 > R2) continue;
+    const d = Math.sqrt(d2)+0.001;
+    const f = 1 - d/R;
+    const pw = f*f*28*k;
+    p.bx += (dx/d)*pw; p.by += (dy/d)*pw;
+  }
+  ripples.push({ x, y, r:0, life:0, max:540*DPR, hue: Math.random()*360, w:1 });
+}
+
+function shower(){
+  const n = 44;
+  const style = MODES[modeIndex].style;
+  for (let i = 0; i < n; i++){
+    const p = spawn(false, style);
+    p.x = Math.random()*W;
+    p.y = -30*DPR - Math.random()*80*DPR;
+    p.px = p.x; p.py = p.y;
+    p.by = (6 + Math.random()*6)*DPR;
+    p.max = 400 + Math.random()*400;
+    particles.push(p);
+  }
+}
+
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = Math.floor(window.innerWidth * DPR);
+  H = Math.floor(window.innerHeight * DPR);
+  canvas.width = W; canvas.height = H;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  layerA.width = W; layerA.height = H;
+  bw1 = Math.max(2, Math.floor(W/4));  bh1 = Math.max(2, Math.floor(H/4));
+  bw2 = Math.max(2, Math.floor(W/14)); bh2 = Math.max(2, Math.floor(H/14));
+  bloomA.width = bw1; bloomA.height = bh1;
+  bloomB.width = bw2; bloomB.height = bh2;
+  [ctx, lctx, bA, bB].forEach(c => {
+    c.imageSmoothingEnabled = true;
+    if ('imageSmoothingQuality' in c) c.imageSmoothingQuality = 'low';
+  });
+  ctx.clearRect(0,0,W,H);
+  initParticlesForMode();
+}
+
+/* ═══════ АУДИО (без изменений) ═══════ */
+const SOUNDSCAPES = {
+  ambient: {
+    name:'эмбиент',
+    droneNotes:[55, 82.41, 110, 164.81, 220],
+    droneTypes:['sine','sine','sine','triangle','sine'],
+    droneGain:0.11, filterFreq:700, filterQ:0.4,
+    filterLfoRate:0.032, filterLfoDepth:0.16,
+    bellMin:3500, bellMax:8000, bellVel:0.30, bellOct:'mid',
+    dryGain:0.42, wetGain:0.95
+  },
+  crystal: {
+    name:'кристалл',
+    droneNotes:[110, 164.81, 220, 329.63, 440, 659.25],
+    droneTypes:['sine','triangle','sine','triangle','sine','sine'],
+    droneGain:0.09, filterFreq:950, filterQ:0.4,
+    filterLfoRate:0.06, filterLfoDepth:0.14,
+    bellMin:1500, bellMax:3600, bellVel:0.26, bellOct:'high',
+    dryGain:0.50, wetGain:0.90
+  },
+  lullaby: {
+    name:'колыбельная',
+    droneNotes:[174.61, 220.00, 261.63, 349.23],
+    droneTypes:['sine','sine','sine','sine'],
+    droneGain:0.085, filterFreq:900, filterQ:0.3,
+    filterLfoRate:0.020, filterLfoDepth:0.14,
+    bellMin:14000, bellMax:26000, bellVel:0.10, bellOct:'high',
+    dryGain:0.22, wetGain:1.45
+  },
+  quiet: {
+    name:'тишина',
+    droneNotes:[110, 164.81],
+    droneTypes:['sine','sine'],
+    droneGain:0.075, filterFreq:480, filterQ:0.3,
+    filterLfoRate:0.018, filterLfoDepth:0.12,
+    bellMin:26000, bellMax:48000, bellVel:0.07, bellOct:'high',
+    dryGain:0.28, wetGain:0.55
+  }
+};
+const AUTO_MAP = { none:'ambient', breath:'lullaby', focus:'crystal', rest:'quiet' };
+let currentSoundscapeKey = null;
+let audio = null, analyser = null, freqData = null;
+
+function makeImpulse(a, dur, decay){
+  const rate = a.sampleRate, len = Math.floor(rate*dur);
+  const buf = a.createBuffer(2, len, rate);
+  for (let ch = 0; ch < 2; ch++){
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random()*2-1)*Math.pow(1-i/len, decay);
+  }
+  return buf;
+}
+function initAudio(){
+  if (audio) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  const a = new AC();
+  const master = a.createGain(); master.gain.value = 0.0001;
+  analyser = a.createAnalyser();
+  analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.82;
+  freqData = new Uint8Array(analyser.frequencyBinCount);
+  master.connect(analyser); analyser.connect(a.destination);
+  const conv = a.createConvolver();
+  conv.buffer = makeImpulse(a, 5.5, 2.7);
+  const wet = a.createGain(); wet.gain.value = 0.95;
+  conv.connect(wet); wet.connect(master);
+  const dry = a.createGain(); dry.gain.value = 0.42;
+  dry.connect(master);
+  audio = { ctx:a, master, conv, wet, dry, droneBank:null };
+  master.gain.setTargetAtTime(0.5, a.currentTime, 3.6);
+  buildSoundscape(currentSoundscapeKey || 'ambient');
+  scheduleBells();
+}
+function buildSoundscape(key){
+  if (!audio) return;
+  const s = SOUNDSCAPES[key]; if (!s) return;
+  const a = audio.ctx, t0 = a.currentTime;
+  const old = audio.droneBank;
+  if (old){
+    try{
+      old.gain.gain.cancelScheduledValues(t0);
+      old.gain.gain.setValueAtTime(old.gain.gain.value, t0);
+      old.gain.gain.linearRampToValueAtTime(0.0001, t0 + 2.4);
+    }catch(e){}
+    const kill = old.oscs.slice();
+    setTimeout(() => kill.forEach(o => { try{o.stop(); o.disconnect();}catch(e){} }), 2700);
+  }
+  const gain = a.createGain(); gain.gain.value = 0.0001;
+  const lp = a.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = s.filterFreq; lp.Q.value = s.filterQ;
+  gain.connect(lp); lp.connect(audio.dry); lp.connect(audio.conv);
+  const lfo = a.createOscillator();
+  lfo.type = 'sine'; lfo.frequency.value = s.filterLfoRate;
+  const lfoG = a.createGain();
+  lfoG.gain.value = s.filterFreq * s.filterLfoDepth;
+  lfo.connect(lfoG); lfoG.connect(lp.frequency); lfo.start();
+  const oscs = [lfo];
+  s.droneNotes.forEach((f, i) => {
+    const o = a.createOscillator();
+    o.type = s.droneTypes[i] || 'sine';
+    o.frequency.value = f;
+    const g = a.createGain(); g.gain.value = 0.55/(i+1.8);
+    o.connect(g); g.connect(gain); o.start();
+    oscs.push(o);
+  });
+  gain.gain.setTargetAtTime(s.droneGain, t0, 2.8);
+  audio.dry.gain.setTargetAtTime(s.dryGain, t0, 2.0);
+  audio.wet.gain.setTargetAtTime(s.wetGain, t0, 2.0);
+  audio.droneBank = { gain, oscs, filter: lp };
+  currentSoundscapeKey = key;
+  hudSound.textContent = s.name;
+}
+const BELL_TABLES = {
+  low:[130.81,164.81,196.00,261.63],
+  mid:[261.63,329.63,392.00,440.00],
+  high:[523.25,659.25,783.99,880.00]
+};
+function pickBellNote(s){
+  const arr = BELL_TABLES[s.bellOct] || BELL_TABLES.mid;
+  return arr[Math.floor(Math.random()*arr.length)];
+}
+function bell(freq, vel){
+  if (!audio) return;
+  const a = audio.ctx, t0 = a.currentTime;
+  const o1 = a.createOscillator(); o1.type='sine'; o1.frequency.value=freq;
+  const o2 = a.createOscillator(); o2.type='sine'; o2.frequency.value=freq*2.0;
+  const g2 = a.createGain(); g2.gain.value = 0.14; o2.connect(g2);
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(0.16*vel, t0 + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 5.5);
+  o1.connect(g); g2.connect(g);
+  g.connect(audio.dry); g.connect(audio.conv);
+  o1.start(t0); o2.start(t0);
+  o1.stop(t0+5.7); o2.stop(t0+5.7);
+}
+function scheduleBells(){
+  if (!audio) return;
+  const s = SOUNDSCAPES[currentSoundscapeKey] || SOUNDSCAPES.ambient;
+  let mul = 1;
+  if (state.purpose === 'rest') mul = 2.6;
+  if (state.purpose === 'focus') mul = 1.6;
+  const delay = (s.bellMin + Math.random()*(s.bellMax - s.bellMin)) * mul;
+  setTimeout(() => {
+    if (audio && audio.ctx.state === 'running'){
+      const allow = state.purpose !== 'rest' || Math.random() < 0.4;
+      if (allow){
+        bell(pickBellNote(s), s.bellVel * (0.6 + Math.random()*0.6));
+        if (Math.random() < 0.4){
+          ripples.push({ x:W*(0.15+Math.random()*0.7), y:H*(0.15+Math.random()*0.7),
+            r:0, life:0, max:620*DPR, hue:Math.random()*360, w:1.4 });
+        }
+      }
+    }
+    scheduleBells();
+  }, delay);
+}
+function cueBreath(){
+  if (!audio) return;
+  const a = audio.ctx, t0 = a.currentTime;
+  const o = a.createOscillator(); o.type='sine'; o.frequency.value=620;
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(0.045, t0 + 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.2);
+  o.connect(g); g.connect(audio.dry); g.connect(audio.conv);
+  o.start(t0); o.stop(t0 + 1.3);
+}
+function cuePhase(){ [523.25, 659.25, 783.99].forEach((f,i) => setTimeout(() => bell(f, 0.7), i*180)); }
+function cueEnd(){ [392, 523.25, 659.25, 783.99].forEach((f,i) => setTimeout(() => bell(f, 0.85), i*200)); }
+function updateEnergy(){
+  if (!analyser){ energy *= 0.94; return; }
+  analyser.getByteFrequencyData(freqData);
+  let s = 0; for (let i = 1; i < 10; i++) s += freqData[i];
+  const e = s/(9*255);
+  energy += (e - energy)*0.25;
+}
+
+/* ═══════ ИСТОРИЯ ═══════ */
+const HIST_KEY = 'relarest.history.v1';
+let history = [];
+function loadHistory(){
+  try{
+    const h = JSON.parse(localStorage.getItem(HIST_KEY) || '[]');
+    if (Array.isArray(h)) history = h.slice(-500);
+  }catch(e){}
+}
+function saveHistory(){ try{ localStorage.setItem(HIST_KEY, JSON.stringify(history.slice(-500))); }catch(e){} }
+function pushHistory(e){
+  history.push(e);
+  if (history.length > 500) history = history.slice(-500);
+  saveHistory();
+}
+loadHistory();
+
+/* ═══════ STATE ═══════ */
+const PATTERNS = {
+  '478': { name:'4·7·8', phases:[
+    {key:'inhale', label:'вдох',  dur:4},
+    {key:'hold',   label:'держи', dur:7},
+    {key:'exhale', label:'выдох', dur:8}]},
+  '446': { name:'4·4·6', phases:[
+    {key:'inhale', label:'вдох',  dur:4},
+    {key:'hold',   label:'держи', dur:4},
+    {key:'exhale', label:'выдох', dur:6}]},
+  'box': { name:'box 4·4·4·4', phases:[
+    {key:'inhale', label:'вдох',  dur:4},
+    {key:'hold',   label:'держи', dur:4},
+    {key:'exhale', label:'выдох', dur:4},
+    {key:'hold',   label:'держи', dur:4}]},
+  'coherent': { name:'5.5 · 5.5', phases:[
+    {key:'inhale', label:'вдох',  dur:5.5},
+    {key:'exhale', label:'выдох', dur:5.5}]}
+};
+
+const state = {
+  purpose: 'none',
+  sound: 'auto',
+  atmosphere: 'silence',
+  breath: { pattern:'478', cycles:10, phaseIdx:0, phaseStart:0, done:0, value:0, speedFactor:1 },
+  focus:  { work:25*60, rest:5*60, rounds:4, phase:'work', phaseStart:0, completed:0 },
+  rest:   { duration:30*60 },
+  realStart: 0,
+  _restStart: 0
+};
+
+const LS = 'relarest.settings.v1';
+function loadSettings(){
+  try{
+    const s = JSON.parse(localStorage.getItem(LS) || '{}');
+    if (s.purpose && ['none','breath','focus','rest'].includes(s.purpose)) state.purpose = s.purpose;
+    if (s.sound && ['auto','ambient','lullaby','crystal','quiet'].includes(s.sound)) state.sound = s.sound;
+    if (s.atmosphere && MODES.find(m => m.id === s.atmosphere)) state.atmosphere = s.atmosphere;
+    if (s.breath){
+      if (PATTERNS[s.breath.pattern]) state.breath.pattern = s.breath.pattern;
+      if (typeof s.breath.cycles === 'number') state.breath.cycles = s.breath.cycles;
+    }
+    if (s.focus){
+      if (s.focus.work) state.focus.work = s.focus.work;
+      if (s.focus.rest) state.focus.rest = s.focus.rest;
+      if (s.focus.rounds) state.focus.rounds = s.focus.rounds;
+    }
+    if (s.rest && s.rest.duration) state.rest.duration = s.rest.duration;
+  }catch(e){}
+}
+function saveSettings(){
+  try{ localStorage.setItem(LS, JSON.stringify({
+    purpose: state.purpose, sound: state.sound, atmosphere: state.atmosphere,
+    breath: { pattern: state.breath.pattern, cycles: state.breath.cycles },
+    focus: { work: state.focus.work, rest: state.focus.rest, rounds: state.focus.rounds },
+    rest: { duration: state.rest.duration }
+  })); }catch(e){}
+}
+loadSettings();
+
+/* ═══════ DROPDOWN ═══════ */
+function makeDD(container, opts, getVal, setVal){
+  container.innerHTML = '';
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'dd-toggle';
+  const lbl = document.createElement('span'); lbl.className = 'dd-lbl';
+  const caret = document.createElement('span'); caret.className = 'dd-caret'; caret.textContent = '▼';
+  toggle.appendChild(lbl); toggle.appendChild(caret);
+  const menu = document.createElement('div'); menu.className = 'dd-menu';
+  container.appendChild(toggle); container.appendChild(menu);
+
+  function render(){
+    const cur = getVal();
+    const found = opts.find(o => o.value === cur);
+    lbl.textContent = found ? found.label : cur;
+    menu.innerHTML = '';
+    opts.forEach(opt => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'dd-item' + (opt.value === cur ? ' active' : '');
+      b.textContent = opt.label;
+      b.onclick = (ev) => {
+        ev.stopPropagation();
+        setVal(opt.value);
+        render();
+        container.classList.remove('open');
+      };
+      menu.appendChild(b);
+    });
+  }
+  toggle.onclick = (ev) => {
+    ev.stopPropagation();
+    const wasOpen = container.classList.contains('open');
+    document.querySelectorAll('.dd.open').forEach(d => d.classList.remove('open'));
+    if (!wasOpen) container.classList.add('open');
+  };
+  render();
+  return render;
+}
+
+const OPTS = {
+  purpose: [
+    { value:'none',   label:'просто' },
+    { value:'breath', label:'дыхание' },
+    { value:'focus',  label:'фокус' },
+    { value:'rest',   label:'отдых' }
+  ],
+  sound: [
+    { value:'auto',    label:'авто' },
+    { value:'ambient', label:'эмбиент' },
+    { value:'lullaby', label:'колыбельная' },
+    { value:'crystal', label:'кристалл' },
+    { value:'quiet',   label:'тишина' }
+  ],
+  atmosphere: MODES.map(m => ({ value:m.id, label:m.label })),
+  pattern: [
+    { value:'478',      label:'4·7·8' },
+    { value:'446',      label:'4·4·6' },
+    { value:'box',      label:'box 4·4·4·4' },
+    { value:'coherent', label:'5.5 · 5.5' }
+  ],
+  cycles: [
+    { value:5,  label:'5' }, { value:10, label:'10' },
+    { value:20, label:'20' }, { value:0, label:'∞' }
+  ],
+  work: [
+    { value:15*60, label:'15 min' }, { value:25*60, label:'25 min' },
+    { value:45*60, label:'45 min' }, { value:50*60, label:'50 min' }
+  ],
+  restBreak: [
+    { value:3*60, label:'3 min' }, { value:5*60, label:'5 min' }, { value:10*60, label:'10 min' }
+  ],
+  rounds: [
+    { value:1, label:'1' }, { value:2, label:'2' }, { value:4, label:'4' }, { value:6, label:'6' }
+  ],
+  restDur: [
+    { value:5*60, label:'5 min' }, { value:10*60, label:'10 min' },
+    { value:15*60, label:'15 min' }, { value:20*60, label:'20 min' },
+    { value:30*60, label:'30 min' }, { value:45*60, label:'45 min' },
+    { value:60*60, label:'60 min' }, { value:90*60, label:'90 min' }
+  ]
+};
+
+let rerenderPurpose, rerenderSound, rerenderAtmo;
+
+function buildSettings(){
+  rerenderPurpose = makeDD(ddPurpose, OPTS.purpose,
+    () => state.purpose,
+    (v) => {
+      state.purpose = (state.purpose === v) ? 'none' : v;
+      saveSettings();
+      applyPurposeChange();
+      rerenderPurpose();
+      buildContext();
+    });
+  rerenderSound = makeDD(ddSound, OPTS.sound,
+    () => state.sound,
+    (v) => {
+      state.sound = v;
+      saveSettings();
+      applySoundscape();
+      toast(SOUNDSCAPES[currentSoundscapeKey].name);
+    });
+  rerenderAtmo = makeDD(ddAtmo, OPTS.atmosphere,
+    () => state.atmosphere,
+    (v) => {
+      state.atmosphere = v;
+      saveSettings();
+      setAtmosphere(MODES.findIndex(m => m.id === v), false);
+    });
+  buildContext();
+}
+
+function buildContext(){
+  ddContext.innerHTML = '';
+  const p = state.purpose;
+  if (p === 'none') return;
+  if (p === 'breath'){
+    ddContext.appendChild(makeField('pattern', OPTS.pattern,
+      () => state.breath.pattern, v => { state.breath.pattern = v; saveSettings(); resetBreath(); }));
+    ddContext.appendChild(makeField('cycles', OPTS.cycles,
+      () => state.breath.cycles, v => { state.breath.cycles = v; saveSettings(); }));
+  } else if (p === 'focus'){
+    ddContext.appendChild(makeField('work', OPTS.work,
+      () => state.focus.work, v => { state.focus.work = v; saveSettings(); resetFocus(); }));
+    ddContext.appendChild(makeField('break', OPTS.restBreak,
+      () => state.focus.rest, v => { state.focus.rest = v; saveSettings(); resetFocus(); }));
+    ddContext.appendChild(makeField('rounds', OPTS.rounds,
+      () => state.focus.rounds, v => { state.focus.rounds = v; saveSettings(); resetFocus(); }));
+  } else if (p === 'rest'){
+    ddContext.appendChild(makeField('duration', OPTS.restDur,
+      () => state.rest.duration, v => { state.rest.duration = v; saveSettings(); resetRest(); }));
+  }
+}
+
+function makeField(labelText, opts, getVal, setVal){
+  const wrap = document.createElement('div');
+  wrap.className = 'field';
+  wrap.style.marginTop = '2px';
+  const lbl = document.createElement('label'); lbl.textContent = labelText;
+  const dd = document.createElement('div'); dd.className = 'dd';
+  wrap.appendChild(lbl); wrap.appendChild(dd);
+  makeDD(dd, opts, getVal, setVal);
+  return wrap;
+}
+
+/* ═══════ СЕССИИ ═══════ */
+function applyPurposeChange(){
+  const p = state.purpose;
+  state.realStart = Date.now();
+  resetBreath(); resetFocus(); resetRest();
+  display.classList.toggle('active', p !== 'none');
+  if (p !== 'rest') veil.style.opacity = 0;
+  if (audio) audio.master.gain.setTargetAtTime(0.5, audio.ctx.currentTime, 1.5);
+  applySoundscape();
+  updateDisplay();
+}
+function resetBreath(){
+  state.breath.phaseIdx = 0;
+  state.breath.phaseStart = totalSec;
+  state.breath.done = 0;
+  state.breath.value = 0;
+  state.breath.speedFactor = 1;
+}
+function resetFocus(){
+  state.focus.phase = 'work';
+  state.focus.phaseStart = totalSec;
+  state.focus.completed = 0;
+  state.realStart = Date.now();
+}
+function resetRest(){ state.realStart = Date.now(); state._restStart = totalSec; }
+
+function applySoundscape(){
+  let key = (state.sound === 'auto') ? (AUTO_MAP[state.purpose] || 'ambient') : state.sound;
+  if (!SOUNDSCAPES[key]) key = 'ambient';
+  if (key !== currentSoundscapeKey){
+    if (audio) buildSoundscape(key);
+    else currentSoundscapeKey = key;
+  }
+}
+
+function updateBreath(dtSec){
+  const b = state.breath;
+  const pat = PATTERNS[b.pattern];
+  const phase = pat.phases[b.phaseIdx];
+  const elapsed = dtSec - b.phaseStart;
+  if (elapsed >= phase.dur){
+    b.phaseIdx = (b.phaseIdx + 1) % pat.phases.length;
+    b.phaseStart = dtSec;
+    if (b.phaseIdx === 0){
+      b.done++;
+      if (b.cycles > 0 && b.done >= b.cycles){
+        recordSession('breath', { cycles: b.done });
+        endSession('дыхание · ' + b.done + ' циклов');
+        return;
+      }
+    }
+    cueBreath();
+  }
+  const tN = Math.min(1, (dtSec - b.phaseStart) / phase.dur);
+  const sm = tN * tN * (3 - 2 * tN);
+  if (phase.key === 'inhale') b.value = sm;
+  else if (phase.key === 'exhale') b.value = 1 - sm;
+  else {
+    const prev = pat.phases[(b.phaseIdx - 1 + pat.phases.length) % pat.phases.length];
+    b.value = prev.key === 'inhale' ? 1 : 0;
+  }
+  if (phase.key === 'inhale')       b.speedFactor = 0.55 + 1.75 * tN;
+  else if (phase.key === 'exhale')  b.speedFactor = 1.75 - 1.35 * tN;
+  else                              b.speedFactor = 0.55 + 0.35 * Math.sin(tN * Math.PI);
+}
+
+function updateFocus(dtSec){
+  const f = state.focus;
+  const dur = f.phase === 'work' ? f.work : f.rest;
+  const elapsed = dtSec - f.phaseStart;
+  if (elapsed >= dur){
+    if (f.phase === 'work'){
+      f.completed++;
+      if (f.completed >= f.rounds){
+        recordSession('focus', { rounds: f.completed });
+        endSession('фокус · ' + f.completed + ' из ' + f.rounds);
+        return;
+      }
+      f.phase = 'rest';
+    } else {
+      f.phase = 'work';
+    }
+    f.phaseStart = dtSec;
+    cuePhase();
+  }
+}
+
+function updateRest(){
+  if (!state._restStart) state._restStart = totalSec;
+  const el = totalSec - state._restStart;
+  const prog = Math.min(1, el / state.rest.duration);
+  const dimT = Math.max(0, (prog - 0.55) / 0.45);
+  veil.style.opacity = (dimT * 0.94).toFixed(3);
+  if (audio){
+    const g = Math.max(0, 0.5 * (1 - prog*prog));
+    audio.master.gain.setTargetAtTime(g, audio.ctx.currentTime, 0.6);
+  }
+  if (prog >= 1){
+    recordSession('rest', { duration: state.rest.duration });
+    endSession('отдых завершён');
+  }
+}
+
+function recordSession(type, meta){
+  if (!state.realStart) return;
+  const dur = Math.round((Date.now() - state.realStart)/1000);
+  if (dur < 5) return;
+  pushHistory({ type, start: state.realStart, end: Date.now(), duration: dur, meta: meta||{} });
+}
+
+function endSession(msg){
+  state.purpose = 'none';
+  state._restStart = 0;
+  display.classList.remove('active');
+  veil.style.opacity = 0;
+  if (audio) audio.master.gain.setTargetAtTime(0.5, audio.ctx.currentTime, 1.5);
+  if (msg) toast(msg);
+  cueEnd();
+  applySoundscape();
+  rerenderPurpose();
+  buildContext();
+  burst(W/2, H/2, 1.6);
+  ripples.push({ x:W/2, y:H/2, r:0, life:0, max:1100*DPR, hue:170, w:2.4 });
+}
+
+function fmtTime(sec){
+  sec = Math.max(0, Math.ceil(sec));
+  const m = Math.floor(sec/60), s = sec % 60;
+  return m + ':' + (s < 10 ? '0'+s : s);
+}
+function updateDisplay(){
+  const p = state.purpose;
+  if (p === 'none') return;
+  if (p === 'breath'){
+    const pat = PATTERNS[state.breath.pattern];
+    const ph = pat.phases[state.breath.phaseIdx];
+    const remain = ph.dur - (totalSec - state.breath.phaseStart);
+    phaseEl.textContent = ph.label;
+    timerEl.textContent = Math.max(0, remain).toFixed(1);
+    const done = state.breath.done;
+    const tgt = state.breath.cycles;
+    metaEl.textContent = 'цикл ' + done + (tgt > 0 ? ' / ' + tgt : ' · ∞');
+  }
+  else if (p === 'focus'){
+    const f = state.focus;
+    const dur = f.phase === 'work' ? f.work : f.rest;
+    const remain = dur - (totalSec - f.phaseStart);
+    phaseEl.textContent = f.phase === 'work' ? 'работа' : 'перерыв';
+    timerEl.textContent = fmtTime(remain);
+    metaEl.textContent = 'подход ' + (f.completed + (f.phase === 'work' ? 1 : 0)) + ' из ' + f.rounds;
+  }
+  else if (p === 'rest'){
+    if (!state._restStart) state._restStart = totalSec;
+    const remain = state.rest.duration - (totalSec - state._restStart);
+    phaseEl.textContent = 'отдых';
+    timerEl.textContent = fmtTime(remain);
+    metaEl.textContent = 'всё гаснет само';
+  }
+}
+
+/* ═══════ ИСТОРИЯ ═══════ */
+function fmtMin(min){
+  if (min < 1) return '—';
+  if (min < 60) return Math.round(min) + 'm';
+  const h = Math.floor(min/60), m = Math.round(min - h*60);
+  return m > 0 ? (h + 'h ' + m + 'm') : (h + 'h');
+}
+function renderHistory(){
+  const dayMs = 86400000;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStart = today.getTime();
+  const weekStart = todayStart - 6*dayMs;
+  let tMin = 0, wMin = 0, aMin = 0;
+  for (const s of history){
+    const m = s.duration/60;
+    aMin += m;
+    if (s.start >= weekStart) wMin += m;
+    if (s.start >= todayStart) tMin += m;
+  }
+  hToday.textContent = fmtMin(tMin);
+  hWeek.textContent  = fmtMin(wMin);
+  hTotal.textContent = fmtMin(aMin);
+
+  hChart.innerHTML = '';
+  const days = [];
+  let maxV = 0;
+  for (let i = 13; i >= 0; i--){
+    const start = todayStart - i*dayMs;
+    const end = start + dayMs;
+    let b = 0, f = 0, r = 0;
+    for (const s of history){
+      if (s.start >= start && s.start < end){
+        const m = s.duration/60;
+        if (s.type === 'breath') b += m;
+        else if (s.type === 'focus') f += m;
+        else if (s.type === 'rest') r += m;
+      }
+    }
+    const tot = b+f+r;
+    if (tot > maxV) maxV = tot;
+    days.push({ b, f, r, tot });
+  }
+  maxV = Math.max(10, maxV);
+  for (let i = 0; i < days.length; i++){
+    const d = days[i];
+    const col = document.createElement('div');
+    col.className = 'hist-col';
+    if (d.tot > 0.05){
+      const segs = [{ v:d.r, c:'rest' }, { v:d.f, c:'focus' }, { v:d.b, c:'breath' }];
+      for (const sg of segs){
+        if (sg.v <= 0) continue;
+        const seg = document.createElement('div');
+        seg.className = 'hist-seg ' + sg.c;
+        seg.style.height = Math.max(2, (sg.v/maxV)*100).toFixed(1) + '%';
+        col.appendChild(seg);
+      }
+    } else {
+      const empty = document.createElement('div');
+      empty.style.height = '2px';
+      empty.style.background = 'rgba(110,180,190,.08)';
+      col.appendChild(empty);
+    }
+    hChart.appendChild(col);
+  }
+
+  hRecent.innerHTML = '';
+  const recent = history.slice(-10).reverse();
+  if (!recent.length){
+    const e = document.createElement('div');
+    e.className = 'hist-empty'; e.textContent = 'пусто';
+    hRecent.appendChild(e);
+    return;
+  }
+  const typeNames = { breath:'дыхание', focus:'фокус', rest:'отдых' };
+  for (const s of recent){
+    const el = document.createElement('div');
+    el.className = 'hist-item';
+    const d = new Date(s.start);
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mm = String(d.getMinutes()).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0');
+    const dur = s.duration >= 60
+      ? Math.floor(s.duration/60) + 'm' + String(s.duration%60).padStart(2,'0') + 's'
+      : s.duration + 's';
+    el.innerHTML =
+      '<span class="dot ' + s.type + '"></span>' +
+      '<span class="info">' + typeNames[s.type] +
+      '<span class="when">' + day + ' ' + hh + ':' + mm + '</span></span>' +
+      '<span class="dur">' + dur + '</span>';
+    hRecent.appendChild(el);
+  }
+}
+
+/* ═══════ ПАНЕЛИ ═══════ */
+function closeAllPanels(){
+  settingsPanel.classList.remove('open');
+  historyPanel.classList.remove('open');
+  settingsBtn.classList.remove('active');
+  historyBtn.classList.remove('active');
+}
+settingsBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const wasOpen = settingsPanel.classList.contains('open');
+  closeAllPanels();
+  if (!wasOpen){ settingsPanel.classList.add('open'); settingsBtn.classList.add('active'); }
+});
+historyBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const wasOpen = historyPanel.classList.contains('open');
+  closeAllPanels();
+  if (!wasOpen){
+    historyPanel.classList.add('open'); historyBtn.classList.add('active');
+    setTimeout(renderHistory, 20);
+  }
+});
+document.addEventListener('click', (e) => {
+  const t = e.target;
+  if (t.closest('.dd')) return;
+  if (t.closest('.panel') || t.closest('.icon-btn')){
+    if (!t.closest('.dd')) document.querySelectorAll('.dd.open').forEach(d => d.classList.remove('open'));
+    return;
+  }
+  closeAllPanels();
+  document.querySelectorAll('.dd.open').forEach(d => d.classList.remove('open'));
+});
+document.querySelectorAll('[data-close]').forEach(b => {
+  b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const id = b.getAttribute('data-close');
+    $(id).classList.remove('open');
+    if (id === 'settingsPanel') settingsBtn.classList.remove('active');
+    if (id === 'historyPanel') historyBtn.classList.remove('active');
+  });
+});
+
+/* ═══════ ВВОД ═══════ */
+let introGone = false;
+function hideIntro(){
+  if (introGone) return;
+  introGone = true;
+  intro.classList.add('gone');
+}
+setTimeout(hideIntro, 6000);
+
+function toCanvas(e){ return { x: e.clientX*DPR, y: e.clientY*DPR }; }
+window.addEventListener('pointermove', (e) => {
+  const p = toCanvas(e);
+  if (!pointer.active){ pointer.x = p.x; pointer.y = p.y; pointer.active = true; }
+  pointer.tx = p.x; pointer.ty = p.y;
+  idleTime = 0;
+  hud.classList.remove('idle');
+}, { passive:true });
+
+let lastTap = 0;
+window.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('.top') || e.target.closest('button') ||
+      e.target.closest('.hud') || e.target.closest('.hint')) return;
+  const p = toCanvas(e);
+  pointer.tx = p.x; pointer.ty = p.y;
+  if (!pointer.active){ pointer.x = p.x; pointer.y = p.y; pointer.active = true; }
+  idleTime = 0;
+  if (!audio) initAudio();
+  if (audio && audio.ctx.state === 'suspended') audio.ctx.resume();
+  hideIntro();
+  const now = performance.now();
+  if (now - lastTap < 320){
+    shower(); toast('shower'); lastTap = 0; return;
+  }
+  lastTap = now;
+  burst(p.x, p.y);
+  const s = SOUNDSCAPES[currentSoundscapeKey] || SOUNDSCAPES.ambient;
+  bell(pickBellNote(s), 0.8);
+}, { passive:true });
+
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  const k = e.key.toLowerCase();
+  if (k >= '1' && k <= '6'){
+    const idx = parseInt(k, 10) - 1;
+    state.atmosphere = MODES[idx].id;
+    saveSettings();
+    setAtmosphere(idx, false);
+    rerenderAtmo();
+    hideIntro();
+    return;
+  }
+  if (k === ' ' || e.code === 'Space'){
+    e.preventDefault();
+    if (!audio) initAudio();
+    if (audio && audio.ctx.state === 'suspended') audio.ctx.resume();
+    burst(W/2, H/2, 1.6);
+    ripples.push({ x:W/2, y:H/2, r:0, life:0, max:900*DPR, hue:170, w:2.2 });
+    [523.25, 659.25, 783.99].forEach((f,i) => setTimeout(() => bell(f, 0.8), i*110));
+    hideIntro();
+    return;
+  }
+  if (k === 'f'){
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+    return;
+  }
+  if (k === 'h'){ ui.classList.toggle('hidden'); return; }
+  if (k === 'escape'){
+    closeAllPanels();
+    document.querySelectorAll('.dd.open').forEach(d => d.classList.remove('open'));
+  }
+});
+window.addEventListener('resize', () => {
+  resize();
+  if (historyPanel.classList.contains('open')) setTimeout(renderHistory, 40);
+});
+
+/* ═══════ ГЛАВНЫЙ ЦИКЛ ═══════ */
+function frame(now){
+  const raw = now - last; last = now;
+  let dt = raw/16.667;
+  if (!isFinite(dt) || dt <= 0) dt = 1;
+  dt = Math.min(dt, 3);
+  const dts = dt * 16.667 / 1000;
+
+  totalSec += dts;
+  emaMs += (raw - emaMs)*0.05;
+  if (emaMs > 27) quality = 0;
+  else if (emaMs < 17) quality = 1;
+  time += dt;
+
+  /* быстрее lerp — атмосфера ощутимо меняется за ~1с */
+  const k = Math.min(1, 0.09*dt);
+  for (const key in T) P[key] += (T[key] - P[key])*k;
+
+  /* спад flash при смене атмосферы */
+  transitionT *= Math.pow(0.94, dt);
+  if (transitionT < 0.005) transitionT = 0;
+
+  if (state.purpose === 'breath') updateBreath(totalSec);
+  else if (state.purpose === 'focus') updateFocus(totalSec);
+  else if (state.purpose === 'rest') updateRest();
+  updateDisplay();
+
+  idleTime += dts;
+  let tX, tY;
+  if (!pointer.active || idleTime > 3.2){
+    autoPhase += dt;
+    tX = W * (0.5 + 0.34*Math.sin(autoPhase*0.0031)*Math.cos(autoPhase*0.0017));
+    tY = H * (0.5 + 0.31*Math.sin(autoPhase*0.0023 + 1.7)*Math.cos(autoPhase*0.0011));
+    hud.classList.add('idle');
+  } else { tX = pointer.tx; tY = pointer.ty; }
+  const fk = Math.min(1, 0.07*dt);
+  focusP.x += (tX - focusP.x)*fk;
+  focusP.y += (tY - focusP.y)*fk;
+
+  const ox = (focusP.x/W - 0.5), oy = (focusP.y/H - 0.5);
+  bgNeb.style.transform = 'translate3d('+(-ox*46).toFixed(1)+'px,'+(-oy*46).toFixed(1)+'px,0)';
+
+  updateEnergy();
+
+  /* ─── СЛОЙ ЧАСТИЦ ─── */
+  lctx.globalCompositeOperation = 'source-over';
+  lctx.clearRect(0, 0, W, H);
+  lctx.globalCompositeOperation = 'lighter';
+  lctx.lineCap = 'round';
+
+  const t = time * 0.0017;
+  const fx = focusP.x, fy = focusP.y;
+  const R = 300*DPR, R2 = R*R;
+  const cx = W/2, cy = H/2;
+  const eBoost = 1 + energy*0.7;
+  const speedMul = 1 - 0.78*P.lattice;
+  const LAT = 54*DPR, LATH = LAT*0.866;
+  const doLattice = P.lattice > 0.01;
+
+  const isBreath = state.purpose === 'breath';
+  const bv = state.breath.value;
+  const bsf = state.breath.speedFactor;
+  const sphereR    = Math.min(W, H) * 0.30 * (0.58 + 0.62 * bv);
+  const sphereHole = Math.min(W, H) * 0.155;
+  const flowScale  = isBreath ? 0.18 : 1;
+
+  for (let i = 0; i < particles.length; i++){
+    const p = particles[i];
+    const nx = p.x/W, ny = p.y/H;
+
+    let ang =
+      Math.sin(nx*4.2 + t*1.7)*Math.cos(ny*3.6 - t*1.2)*P.curl +
+      Math.sin((nx+ny)*2.8 - t*0.9)*P.curl*0.7 +
+      Math.cos(nx*7.1 - ny*5.3 + t*2.1)*P.curl*0.35;
+
+    const sp = p.speed * P.speed * speedMul * 1.05 * dt * flowScale;
+    let vx = Math.cos(ang)*sp;
+    let vy = Math.sin(ang)*sp;
+
+    const ax = isBreath ? cx : fx;
+    const ay = isBreath ? cy : fy;
+    const dx = p.x - ax, dy = p.y - ay;
+    const d2 = dx*dx + dy*dy;
+    if (d2 < R2){
+      const d = Math.sqrt(d2) + 0.001;
+      const f = 1 - d/R;
+      const ff = f*f;
+      const vscale = isBreath ? 0.12 : 1;
+      vx += (-dy/d)*ff*P.vortex*dt*vscale + (dx/d)*ff*P.pull*dt*vscale;
+      vy += ( dx/d)*ff*P.vortex*dt*vscale + (dy/d)*ff*P.pull*dt*vscale;
+    }
+    if (P.gravity > 0.01) vy += P.gravity * 0.42 * dt;
+    if (P.radial > 0.01){
+      vx += (cx - p.x)/W * P.radial * 2.2 * dt;
+      vy += (cy - p.y)/H * P.radial * 2.2 * dt;
+    }
+
+    /* дыхание */
+    if (isBreath){
+      const ddx = p.x - cx, ddy = p.y - cy;
+      const dr = Math.sqrt(ddx*ddx + ddy*ddy) + 0.001;
+      const ux = ddx/dr, uy = ddy/dr;
+      const wobble = Math.sin(time*0.0011 + p.breathPhase) * 0.05;
+      const targetR = sphereR * (1 + p.breathOffset + wobble);
+      const rF = (targetR - dr) * 0.011;
+      vx += ux * rF * dt;
+      vy += uy * rF * dt;
+      const tang = 1.05 * bsf * p.breathDir * p.breathSpeed;
+      vx += -uy * tang * dt;
+      vy +=  ux * tang * dt;
+      if (dr < sphereHole){
+        const push = (1 - dr/sphereHole);
+        vx += ux * push * 2.6 * dt;
+        vy += uy * push * 2.6 * dt;
+      }
+    }
+
+    p.px = p.x; p.py = p.y;
+    p.x += vx + p.bx*dt;
+    p.y += vy + p.by*dt;
+
+    if (doLattice){
+      const row = Math.round(p.y / LATH);
+      const offX = (row & 1) ? LAT*0.5 : 0;
+      const col = Math.round((p.x - offX) / LAT);
+      const lx = col*LAT + offX, ly = row*LATH;
+      const pull = P.lattice * 0.05 * dt;
+      p.x += (lx - p.x)*pull;
+      p.y += (ly - p.y)*pull;
+    }
+
+    const damp = Math.pow(0.93, dt);
+    p.bx *= damp; p.by *= damp;
+    p.life += dt;
+
+    if (p.life > p.max || p.x < -70 || p.x > W+70 || p.y < -70 || p.y > H+70){
+      particles[i] = spawn(false, MODES[modeIndex].style); continue;
+    }
+
+    const lr = p.life / p.max;
+    let alpha = Math.sin(lr * Math.PI);
+
+    /* мерцание для некоторых атмосфер (кристалл, пепел, созвездие) */
+    if (p.twinkleK > 0){
+      alpha *= (1 - p.twinkleK) + p.twinkleK * (0.5 + 0.5 * Math.sin(time * 0.003 * p.twinkleRate + p.twinkle));
+    }
+
+    let hue = P.hueBase + p.hueOff*(P.hueSpread/40) + nx*44 + ny*32;
+    hue = ((hue % 360) + 360) % 360;
+    hue = Math.round(hue/5)*5;
+
+    const strokeA = alpha * 0.38 * eBoost * (isBreath ? 0.55 : 1);
+    const strokeW = p.w * P.width * DPR * (isBreath ? 0.82 : 1);
+
+    lctx.strokeStyle = 'hsla('+hue+',88%,64%,'+strokeA.toFixed(3)+')';
+    lctx.lineWidth = strokeW;
+    lctx.beginPath();
+    lctx.moveTo(p.px, p.py);
+    lctx.lineTo(p.x, p.y);
+    lctx.stroke();
+  }
+
+  /* ─── СОЗВЕЗДИЕ: линии между близкими частицами ─── */
+  if (P.constellation > 0.4 && !isBreath) drawConstellationLines(P.linkDist, P.constellation);
+
+  /* ─── Волны ─── */
+  for (let i = ripples.length - 1; i >= 0; i--){
+    const rp = ripples[i];
+    rp.life += dt;
+    rp.r += (rp.max - rp.r)*0.05*dt;
+    const a = 1 - rp.life/62;
+    if (a <= 0){ ripples.splice(i, 1); continue; }
+    const hue = Math.round((rp.hue + time*0.6) % 360);
+    lctx.strokeStyle = 'hsla('+hue+',95%,72%,'+(a*0.26*eBoost).toFixed(3)+')';
+    lctx.lineWidth = 1.4 * DPR * a * rp.w;
+    lctx.beginPath(); lctx.arc(rp.x, rp.y, rp.r, 0, Math.PI*2); lctx.stroke();
+  }
+
+  /* ─── КОМПОЗИТ ─── */
+  const fade = P.fade + transitionT * 0.14;
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = 'rgba(0,0,0,'+fade.toFixed(4)+')';
+  ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'lighter';
+
+  bA.globalCompositeOperation = 'source-over';
+  bA.clearRect(0, 0, bw1, bh1);
+  bA.drawImage(layerA, 0, 0, bw1, bh1);
+  bB.globalCompositeOperation = 'source-over';
+  bB.clearRect(0, 0, bw2, bh2);
+  bB.drawImage(bloomA, 0, 0, bw2, bh2);
+
+  const wideW = isBreath ? (0.22 + energy*0.20) : (0.44 + energy*0.30);
+  const fineW = isBreath ? 0.09 : 0.20;
+  ctx.globalAlpha = wideW;
+  ctx.drawImage(bloomB, 0, 0, W, H);
+  if (quality){
+    ctx.globalAlpha = fineW;
+    ctx.drawImage(bloomA, 0, 0, W, H);
+  }
+  ctx.globalAlpha = isBreath ? 0.82 : 0.92;
+  ctx.drawImage(layerA, 0, 0, W, H);
+  ctx.globalAlpha = 1;
+
+  requestAnimationFrame(frame);
+}
+
+function drawConstellationLines(linkDistBase, strength){
+  if (!linkDistBase) return;
+  const cs = 120 * DPR, cs2 = cs*cs;
+  const grid = new Map();
+  for (let i = 0; i < particles.length; i++){
+    const p = particles[i];
+    const gx = Math.floor(p.x / cs);
+    const gy = Math.floor(p.y / cs);
+    const key = gx + ',' + gy;
+    let arr = grid.get(key);
+    if (!arr){ arr = []; grid.set(key, arr); }
+    arr.push(p);
+  }
+  const linkD = linkDistBase * DPR;
+  const linkD2 = linkD * linkD;
+  const baseHue = P.hueBase;
+
+  for (const [key, arr] of grid){
+    const [gx, gy] = key.split(',').map(Number);
+    for (let dx = 0; dx <= 1; dx++){
+      for (let dy = (dx === 0 ? 0 : -1); dy <= 1; dy++){
+        const nArr = grid.get((gx+dx) + ',' + (gy+dy));
+        if (!nArr) continue;
+        const same = (dx === 0 && dy === 0);
+        for (let i = 0; i < arr.length; i++){
+          const a = arr[i];
+          const startJ = same ? i + 1 : 0;
+          for (let j = startJ; j < nArr.length; j++){
+            const b = nArr[j];
+            const ddx = a.x - b.x, ddy = a.y - b.y;
+            const d2 = ddx*ddx + ddy*ddy;
+            if (d2 > linkD2) continue;
+            const falloff = 1 - Math.sqrt(d2) / linkD;
+            const alpha = falloff * falloff * 0.24 * strength;
+            const hue = Math.round((baseHue + (a.hueOff + b.hueOff)*0.3) % 360);
+            lctx.strokeStyle = 'hsla('+hue+',70%,74%,'+alpha.toFixed(3)+')';
+            lctx.lineWidth = 0.6 * DPR;
+            lctx.beginPath();
+            lctx.moveTo(a.x, a.y);
+            lctx.lineTo(b.x, b.y);
+            lctx.stroke();
+          }
+        }
+      }
+    }
+  }
+}
+
+setInterval(() => {
+  if (emaMs > 0) hudFps.textContent = Math.round(1000/emaMs);
+}, 520);
+
+/* ═══════ СТАРТ ═══════ */
+resize();
+setAtmosphere(MODES.findIndex(m => m.id === state.atmosphere), true);
+focusP.x = W/2; focusP.y = H/2;
+pointer.x = pointer.tx = W/2;
+pointer.y = pointer.ty = H/2;
+
+currentSoundscapeKey = (state.sound === 'auto') ? (AUTO_MAP[state.purpose] || 'ambient') : state.sound;
+if (!SOUNDSCAPES[currentSoundscapeKey]) currentSoundscapeKey = 'ambient';
+hudSound.textContent = SOUNDSCAPES[currentSoundscapeKey].name;
+
+buildSettings();
+applyPurposeChange();
+
+requestAnimationFrame((t) => { last = t; requestAnimationFrame(frame); });
+
+setTimeout(() => {
+  burst(W/2, H/2, 1.4);
+  ripples.push({ x:W/2, y:H/2, r:0, life:0, max:820*DPR, hue:170, w:2.0 });
+}, 700);
+
+})();
+</script>
+</body>
+</html>
